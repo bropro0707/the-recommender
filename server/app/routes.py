@@ -46,6 +46,48 @@ def config():
     })
 
 
+@api_bp.route('/health')
+def health():
+    """Diagnostic: report DB connectivity. Returns the raw error so it can be
+    seen in the response body (browser/curl) without digging through logs."""
+    import os
+    conn = None
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        cursor.fetchone()
+        cursor.close()
+        return jsonify({
+            'status': 'ok',
+            'db': {
+                'host': os.getenv('MYSQL_HOST', 'localhost'),
+                'port': os.getenv('MYSQL_PORT', '3306'),
+                'database': os.getenv('MYSQL_DATABASE', 'movie_recommender'),
+                'user': os.getenv('MYSQL_USER', 'root'),
+                'ssl': os.getenv('MYSQL_SSL', 'false'),
+            },
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'db': {
+                'host': os.getenv('MYSQL_HOST', 'localhost'),
+                'port': os.getenv('MYSQL_PORT', '3306'),
+                'database': os.getenv('MYSQL_DATABASE', 'movie_recommender'),
+                'user': os.getenv('MYSQL_USER', 'root'),
+                'ssl': os.getenv('MYSQL_SSL', 'false'),
+                'error': '%s: %s' % (type(e).__name__, str(e)),
+            },
+        }), 500
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
 @api_bp.route('/favorites')
 def favorites():
     """Curated favorites for the quiz picker."""
