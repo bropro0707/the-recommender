@@ -4,11 +4,16 @@ Answer five quick questions about your mood and get movie or TV recommendations 
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Status: Under Construction](https://img.shields.io/badge/Status-Under%20Construction-orange.svg)](https://github.com/bropro0707/the-recommender)
+
+> 🚧 **Under Construction** — This project is actively being built. Features may change and some things might break. Stay tuned!
 
 
 ## Overview
 
 **The Recommender** a full-stack web app that helps you pick something to watch based on your answer. Choose how you want to feel — make me laugh, make me cry, keep me on edge — and get personalized picks from a Cinephile friend.
+
+**Try it live:** [the-recommender.onrender.com](https://the-recommender.onrender.com)
 
 ### Key Features
 
@@ -118,7 +123,13 @@ the-recommender/
    MYSQL_USER=root
    MYSQL_PASSWORD=your_password
    MYSQL_DATABASE=movie_recommender
+   MYSQL_SSL=true  # optional, for TiDB Cloud / managed MySQL
    ```
+   TiDB Cloud (and most managed MySQL hosts) require an encrypted connection —
+   set `MYSQL_SSL=true` in production so the app connects over SSL using the
+   system CA bundle. Add `MYSQL_SSL_CA=/path/to/ca.pem` only if your host gives
+   you a specific certificate. Local MySQL development is untouched since SSL
+   defaults to off.
 
 5. **Initialize the database:**
    ```bash
@@ -161,6 +172,38 @@ the-recommender/
    - Using Python: `python -m http.server 8000`
    - Using Node.js: `npx http-server`
    - Open `http://localhost:8000` in your browser
+
+## Deploying to Render.com
+
+The app is a single Flask **Web Service** — Flask also serves the `client/` folder, so one Render service hosts both the API and the frontend (leave `window.API_BASE = ''` in `client/config.js`).
+
+1. **Create a new Web Service** on Render and point it at this repository.
+2. **Build command:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. **Start command:**
+   ```bash
+   gunicorn run:app
+   ```
+4. **Add the environment variables** (same ones as in `.env.example`):
+   ```env
+   TMDB_API_KEY=your_tmdb_api_key
+   SECRET_KEY=generate_a_random_string_here
+   MYSQL_HOST=your_tidb_host
+   MYSQL_PORT=4000
+   MYSQL_USER=your_user
+   MYSQL_PASSWORD=your_password
+   MYSQL_DATABASE=movie_recommender
+   MYSQL_SSL=true
+   ```
+5. **Set up your database** — TiDB Cloud (or any managed MySQL) is the easiest option on Render. Create the schema and populate it *before* first launch:
+   ```bash
+   mysql -h your_tidb_host -P 4000 -u your_user -p movie_recommender < scripts/schema.sql
+   python scripts/ingest.py
+   python scripts/build_recommendations.py
+   ```
+6. **Deploy.** Once the service starts, your app will be live at `https://the-recommender.onrender.com`.
 
 ## API Endpoints
 
