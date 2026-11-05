@@ -1,9 +1,9 @@
 # The Recommender 🎬
-Get stuck what to watch next,
+Stuck on what to watch next?
 Answer five quick questions about your mood and get movie or TV recommendations you'll actually want to watch — not just another "trending now" list.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.8+](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python 3.9+](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Status: Under Construction](https://img.shields.io/badge/Status-Under%20Construction-orange.svg)](https://github.com/bropro0707/the-recommender)
 
 > 🚧 **Under Construction** — This project is actively being built. Features may change and some things might break. Stay tuned!
@@ -11,7 +11,7 @@ Answer five quick questions about your mood and get movie or TV recommendations 
 
 ## Overview
 
-**The Recommender** a full-stack web app that helps you pick something to watch based on your answer. Choose how you want to feel — make me laugh, make me cry, keep me on edge — and get personalized picks from a Cinephile friend.
+**The Recommender** is a full-stack web app that helps you pick something to watch based on your answer. Choose how you want to feel — make me laugh, make me cry, keep me on edge — and get personalized picks from a Cinephile friend.
 
 **Try it live:** [the-recommender.onrender.com](https://the-recommender.onrender.com)
 
@@ -19,9 +19,9 @@ Answer five quick questions about your mood and get movie or TV recommendations 
 
 ✨ **Mood-Based Discovery** – Choose from 7 emotional states to get tailored recommendations
 🔍 **Smart Search** – Multi-field weighted scoring across titles, genres, cast, and keywords
-❤️ **Favorites Management** – Save and track favorite movies and shows
+❤️ **Watchlist & Favorites** – Save titles in your browser
 ⚙️ **Personalization** – Filter by runtime, hard-no content flags, and favorites
-📊 **Advanced Filtering** – Filter by genres, runtime, rating, and content flags
+📊 **Content Filters** – Runtime and content-based hard-no filters
 🎨 **Modern UI** – Responsive design built with Bootstrap 5
 🚀 **RESTful API** – Clean API endpoints for easy integration
 
@@ -31,7 +31,6 @@ Answer five quick questions about your mood and get movie or TV recommendations 
 - **Framework:** Flask with CORS support
 - **Database:** MySQL with connection pooling
 - **ML:** scikit-learn for recommendation scoring
-- **Data Processing:** pandas
 - **Environment:** python-dotenv for configuration
 
 ### Frontend
@@ -42,7 +41,7 @@ Answer five quick questions about your mood and get movie or TV recommendations 
 
 ## Screenshots
 
-<img src="server/screenshots/Screenshot 2026-08-15 170818.png" alt="Homepage with search and latest releases" width="700"/>
+<img src="server/screenshots/Screenshot 2026-08-15 170818.png" alt="Homepage with hero and latest releases" width="700"/>
 <img src="server/screenshots/Screenshot 2026-08-15 170906.png" alt="Recommendation results" width="700"/>
 
 ## Project Structure here mate
@@ -95,7 +94,7 @@ the-recommender/
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/bropro0707/projects/the-recommender.git
+   git clone https://github.com/bropro0707/the-recommender.git
    cd the-recommender/server
    ```
 
@@ -124,6 +123,8 @@ the-recommender/
    MYSQL_PASSWORD=your_password
    MYSQL_DATABASE=movie_recommender
    MYSQL_SSL=true  # optional, for TiDB Cloud / managed MySQL
+   # CORS_ORIGINS=https://your-frontend.example.com  # only if hosted separately
+   # HEALTH_DETAILS=false
    ```
    TiDB Cloud (and most managed MySQL hosts) require an encrypted connection —
    set `MYSQL_SSL=true` in production so the app connects over SSL using the
@@ -131,14 +132,22 @@ the-recommender/
    you a specific certificate. Local MySQL development is untouched since SSL
    defaults to off.
 
+   The API is same-origin by default. If you host the frontend separately, set
+   `CORS_ORIGINS` to a comma-separated allowlist. `/api/health` stays minimal
+   unless `HEALTH_DETAILS=true`, which exposes DB connection details and raw
+   errors for debugging.
+
 5. **Initialize the database:**
    ```bash
-   mysql -u root -p movie_recommender < scripts/schema.sql
+   mysql -u root -p < scripts/schema.sql
+   ```
+   `schema.sql` creates the `movie_recommender` database if needed and is the only
+   file you need on a fresh install. For a database created with an older version of
+   the schema, run the numbered migrations instead:
+   ```bash
    mysql -u root -p movie_recommender < scripts/migrations/001_add_title_columns.sql
    mysql -u root -p movie_recommender < scripts/migrations/002_add_content_flags.sql
    ```
-   `schema.sql` is the base schema (it already includes the `001`/`002` columns, so on
-   a fresh install the two migrations are optional).
 
 6. **Populate the database:**
    ```bash
@@ -203,6 +212,8 @@ The app is a single Flask **Web Service** — Flask also serves the `client/` fo
    python scripts/ingest.py
    python scripts/build_recommendations.py
    ```
+   On TiDB Cloud the database may be created for you by the console; the
+   `CREATE DATABASE` in `schema.sql` is safe either way.
 6. **Deploy.** Once the service starts, your app will be live at `https://the-recommender.onrender.com`.
 
 ## API Endpoints
@@ -213,13 +224,20 @@ Static config for the quiz (moods, runtime options, hard-no's).
 ### `/api/favorites` (GET)
 Curated favorites for the quiz picker. Optional `?limit=` (default 24).
 
+### `/api/stats` (GET)
+Count of movies and TV series currently in the database.
+
+### `/api/health` (GET)
+Minimal DB connectivity check. Returns `{ "status": "ok" }`; set
+`HEALTH_DETAILS=true` to include connection details and raw errors.
+
 ### `/api/titles` (GET)
 Browse all titles, paginated. Pass `?q=` to search by title, cast, character, genre, or keyword with weighted relevance scoring.
 
-**Query params:** `page` (default 1), `q` (optional)
+**Query params:** `page` (default 1), `per_page` (default 12, max 100), `q` (optional)
 
 ### `/api/titles/{id}` (GET)
-Full detail for one title, plus its 12 most similar titles (precomputed).
+Full detail for one title, plus its precomputed similar titles.
 
 ### `/api/personalize` (POST)
 Runs the mood quiz and returns ranked results.

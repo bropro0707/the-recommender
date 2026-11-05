@@ -7,14 +7,25 @@ from .search import search_titles
 # ----------------------------------------------------------------------
 # Personalization helpers
 # ----------------------------------------------------------------------
+# TMDB uses different genre names for movies and TV ("Science Fiction" vs
+# "Sci-Fi & Fantasy", "Action" vs "Action & Adventure", ...), so each mood
+# includes both variants. Otherwise series never match mood genres.
 MOOD_GENRES = {
     'laugh': {'Comedy', 'Animation', 'Family'},
     'cry': {'Drama', 'Romance'},
     'tense': {'Thriller', 'Crime', 'Mystery', 'Horror'},
-    'intellectual': {'Documentary', 'History', 'Science Fiction', 'Mystery', 'War & Politics'},
-    'comforted': {'Family', 'Animation', 'Romance', 'Fantasy', 'Comedy'},
-    'devastated': {'Drama', 'Romance', 'War'},
-    'escape': {'Action', 'Adventure', 'Fantasy', 'Science Fiction', 'Animation', 'Comedy'},
+    'intellectual': {
+        'Documentary', 'History', 'Science Fiction', 'Sci-Fi & Fantasy',
+        'Mystery', 'War', 'War & Politics',
+    },
+    'comforted': {
+        'Family', 'Animation', 'Romance', 'Fantasy', 'Sci-Fi & Fantasy', 'Comedy',
+    },
+    'devastated': {'Drama', 'Romance', 'War', 'War & Politics'},
+    'escape': {
+        'Action', 'Action & Adventure', 'Adventure', 'Fantasy', 'Science Fiction',
+        'Sci-Fi & Fantasy', 'Animation', 'Comedy',
+    },
 }
 
 MOOD_LABELS = {
@@ -84,6 +95,8 @@ HARD_NO = {
 }
 
 HARD_NO_KEYWORDS = {
+    # TMDB has no Horror genre for TV shows, so fall back to tags for series.
+    'horror': {'horror', 'slasher', 'supernatural horror', 'horror film'},
     'nonlinear': {'nonlinear', 'time jump', 'flashback', 'time travel', 'nonlinear timeline', 'non-chronological'},
     'triggers': {'suicide', 'self-harm', 'self harm', 'domestic abuse', 'child abuse', 'violence', 'assault'},
     'sexual_violence': {'rape', 'sexual assault', 'sexual violence', 'molestation'},
@@ -96,7 +109,8 @@ HARD_NO_KEYWORDS = {
 # are TV-MA but are not "adult content". Explicit titles are still caught via the
 # keyword / overview signals below.)
 ADULT_CERTIFICATIONS = {'NC-17', 'X', 'AO'}
-ADULT_TV_RATINGS = {'TV-M18'}
+# No TV rating is treated as unambiguous adult content (see note above).
+ADULT_TV_RATINGS = set()
 
 # Explicit-content terms. Matched against a title's keywords AND its overview,
 # so titles without certification data (e.g. foreign pink films, ecchi anime)
@@ -118,7 +132,7 @@ HARD_NO_KEYWORDS['adult'] = ADULT_KEYWORDS
 # legitimately PG-13 series whose title/overview contain the token, and a
 # case-insensitive `\bxxx\b` cannot distinguish it from adult content. Genuinely
 # explicit titles are still caught by the `adult` flag, NC-17/X/AO certifications,
-# TV-M18 ratings, and the many unambiguous terms below.
+# and the many unambiguous terms below.
 ADULT_OVERVIEW_RE = re.compile(
     r'\b(orgy|bdsm|ecchi|hentai|nude|nudity|porn|softcore|soft-core|erotic|erotica|'
     r'sexploitation|pink film|pink eiga|adult film|adult movie|sex scene|sex tape|'
@@ -191,7 +205,10 @@ def _score_title(t, genres, keywords, people, moods, seeds,
             if seed_director and p['director'] and p['director'] == seed_director:
                 score += 7
 
-    if runtime != 'any' and runtime in RUNTIME_OPTIONS:
+    # TV `runtime` is the average episode length, not the length of a sitting,
+    # so the runtime preference only applies to movies.
+    if (runtime != 'any' and runtime in RUNTIME_OPTIONS
+            and t.get('media_type') == 'movie'):
         if t['runtime']:
             _, test = RUNTIME_OPTIONS[runtime]
             if test(t['runtime']):
@@ -289,7 +306,7 @@ def personalization_query(conn, answers):
     if runtime != 'any' and runtime not in RUNTIME_OPTIONS:
         runtime = 'any'  # unknown value -> behave as "no preference"
 
-    # --- resolve favorite seeds (multiple posters + one typed title) ---
+    # --- resolve favorite seeds (posters + searched titles) ---
     raw_ids = answers.get('favorite_ids') or answers.get('favorite_id') or ''
     if isinstance(raw_ids, str):
         raw_ids = [x for x in raw_ids.replace(',', ' ').split() if x.strip().isdigit()]
@@ -309,7 +326,7 @@ def personalization_query(conn, answers):
 
         # resolve the favorite seed ids
         seed_ids = []
-        for raw in raw_ids[:6]:
+        for raw in raw_ids[:12]:
             try:
                 sid = int(raw)
             except (TypeError, ValueError):
@@ -374,7 +391,7 @@ def personalization_query(conn, answers):
             if exclude:
                 continue
 
-            if runtime != 'any' and t['runtime']:
+            if runtime != 'any' and t['media_type'] == 'movie' and t['runtime']:
                 _, test = RUNTIME_OPTIONS[runtime]
                 if not test(t['runtime']):
                     continue

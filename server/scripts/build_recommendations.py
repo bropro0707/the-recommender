@@ -15,7 +15,6 @@ import logging
 from collections import defaultdict
 
 import mysql.connector
-from mysql.connector import errorcode
 from dotenv import load_dotenv
 
 import numpy as np
@@ -190,26 +189,47 @@ def main():
         keywords_map = fetch_keywords(cur)
         actors_map, directors_map = fetch_people_links(cur)
 
+        if not titles:
+            log.warning("No titles found — nothing to build.")
+            return
+
         log.info("Building feature soups for %d titles …", len(titles))
         soups, title_ids = build_soups(
             titles, genres_map, keywords_map, actors_map, directors_map
         )
+        if not any(s.strip() for s in soups):
+            log.warning("All feature soups are empty — nothing to build.")
+            return
 
         log.info("Vectorising with TF‑IDF …")
+        # A tiny catalog cannot satisfy min_df=2 / max_df=0.9, which would
+        # raise "empty vocabulary", so relax them for small datasets.
+        n_docs = len(soups)
         vectorizer = TfidfVectorizer(
             stop_words="english",
-            max_df=0.9,
-            min_df=2,
+            max_df=0.9 if n_docs >= 10 else 1.0,
+            min_df=2 if n_docs >= 10 else 1,
             ngram_range=(1, 2),
         )
-        tfidf = vectorizer.fit_transform(soups)
+        try:
+            tfidf = vectorizer.fit_transform(soups)
+        except ValueError:
+            # Pathological (e.g. near-identical) catalogs can still produce an
+            # empty vocabulary; fall back to the most permissive settings.
+            log.warning("TF-IDF vocabulary was empty — retrying with relaxed settings.")
+            vectorizer = TfidfVectorizer(
+                stop_words="english", max_df=1.0, min_df=1, ngram_range=(1, 2)
+            )
+            tfidf = vectorizer.fit_transform(soups)
 
         log.info("Computing cosine similarity …")
         # linear_kernel is faster for dense/sparse dot‑product
         cosine = linear_kernel(tfidf, tfidf)
 
         log.info("Writing top‑%d neighbours per title …", TOP_N)
-        cur.execute("TRUNCATE TABLE `similar_titles`")
+        # DELETE (not TRUNCATE) so a failure can be rolled back instead of
+        # leaving an empty similar_titles table.
+        cur.execute("DELETE FROM `similar_titles`")
         insert_sql = """
             INSERT INTO `similar_titles`
                 (`source_title_id`, `target_title_id`, `similarity_score`, `rank`)
@@ -241,14 +261,14 @@ def main():
                 batch.append((src_id, tgt_id, score, rank))
                 if len(batch) >= 1000:
                     cur.executemany(insert_sql, batch)
-                    conn.commit()
                     batch.clear()
             if idx % 500 == 0:
                 log.info("Processed %d / %d titles", idx, len(title_ids))
 
         if batch:
             cur.executemany(insert_sql, batch)
-            conn.commit()
+        # Single commit so a failure leaves the previous recommendations intact.
+        conn.commit()
 
         log.info("Done. Printing sanity‑check samples …")
         # Show first 5 titles with their top 3 neighbours

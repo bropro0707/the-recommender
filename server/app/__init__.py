@@ -9,7 +9,12 @@ load_dotenv()
 def create_app():
     app = Flask(__name__, static_folder=None)
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
-    CORS(app)
+
+    # Same-origin by default (Flask serves client/ too). Set CORS_ORIGINS to a
+    # comma-separated allowlist when the frontend is hosted separately.
+    cors_origins = [o.strip() for o in os.getenv('CORS_ORIGINS', '').split(',') if o.strip()]
+    if cors_origins:
+        CORS(app, resources={r'/api/*': {'origins': cors_origins}})
 
     from .routes import api_bp
     app.register_blueprint(api_bp, url_prefix='/api')

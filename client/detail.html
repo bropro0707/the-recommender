@@ -34,16 +34,9 @@
         <i class="bi bi-list text-light fs-3"></i>
       </button>
       <div class="collapse navbar-collapse" id="navContent">
-        <a class="btn btn-ghost me-2 my-2 my-lg-0" href="personalize.html" style="padding:.45rem 1.2rem;font-size:.9rem;">
+        <a class="btn btn-personalize btn-personalize-sm ms-auto my-2 my-lg-0" href="personalize.html">
           <i class="bi bi-sliders2-vertical me-1"></i>Personalize
         </a>
-        <form class="search-form ms-auto w-100 w-lg-auto my-3 my-lg-0" id="navbarSearch" action="index.html" method="GET" role="search">
-          <div class="input-group">
-            <input class="form-control" type="search" name="q" placeholder="Search movies & shows…"
-                   value="" aria-label="Search">
-            <button class="btn" type="submit"><i class="bi bi-search"></i></button>
-          </div>
-        </form>
       </div>
     </div>
   </nav>
@@ -65,9 +58,9 @@
           <div class="d-flex flex-wrap align-items-center gap-2 mb-3" id="detailMeta"></div>
           <p class="detail-overview" id="detailOverview">Loading details…</p>
           <div class="d-flex flex-wrap gap-2 mt-4">
-            <button class="btn btn-gradient action-btn" data-toast="Added to your Watchlist" data-icon="bi-plus-circle"><i class="bi bi-plus-lg me-2"></i>Watchlist</button>
-            <button class="btn btn-ghost action-btn" data-toast="Saved to Favorites" data-icon="bi-heart-fill"><i class="bi bi-heart me-2"></i>Favorite</button>
-            <button class="btn btn-ghost action-btn" data-toast="Link copied to clipboard" data-icon="bi-link-45deg"><i class="bi bi-share me-2"></i>Share</button>
+            <button class="btn btn-gradient action-btn" data-action="watchlist" data-icon="bi-plus-circle"><i class="bi bi-plus-lg me-2"></i>Watchlist</button>
+            <button class="btn btn-ghost action-btn" data-action="favorite" data-icon="bi-heart-fill"><i class="bi bi-heart me-2"></i>Favorite</button>
+            <button class="btn btn-ghost action-btn" data-action="share" data-icon="bi-link-45deg"><i class="bi bi-share me-2"></i>Share</button>
           </div>
         </div>
       </div>

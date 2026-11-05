@@ -1,13 +1,19 @@
 -- The Recommender – base database schema.
 --
 -- Run this BEFORE the numbered migrations, e.g.:
---   mysql -u root -p movie_recommender < scripts/schema.sql
+--   mysql -u root -p < scripts/schema.sql
 --   mysql -u root -p movie_recommender < scripts/migrations/001_add_title_columns.sql
 --   mysql -u root -p movie_recommender < scripts/migrations/002_add_content_flags.sql
 --
 -- Note: 001/002 were written as standalone ALTERs for pre-existing databases.
 -- This file already includes all of their columns, so on a fresh install you
 -- only need to run schema.sql.
+
+CREATE DATABASE IF NOT EXISTS `movie_recommender`
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE `movie_recommender`;
 
 CREATE TABLE IF NOT EXISTS `genres` (
   `id`      INT UNSIGNED NOT NULL AUTO_INCREMENT,

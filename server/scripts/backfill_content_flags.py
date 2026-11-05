@@ -9,17 +9,15 @@ Usage:
 """
 
 import argparse
-import os
 import sys
 import time
 import logging
 from pathlib import Path
 
-import mysql.connector
 from dotenv import load_dotenv
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from ingest import get_conn, tmdb_get  # noqa: E402
+from ingest import get_conn, tmdb_get, fetch_content_flags  # noqa: E402
 
 load_dotenv()
 
@@ -29,33 +27,6 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("backfill")
-
-
-def fetch_flags(media_type, tmdb_id, details):
-    adult = bool(details.get("adult"))
-    certification = None
-    content_rating = None
-    if media_type == "movie":
-        data = tmdb_get(f"/movie/{tmdb_id}/release_dates")
-        if data:
-            for entry in data.get("results", []):
-                if entry.get("iso_3166_1") == "US":
-                    for rd in entry.get("release_dates", []):
-                        cert = (rd.get("certification") or "").strip()
-                        if cert:
-                            certification = cert
-                            break
-                    break
-    else:
-        data = tmdb_get(f"/tv/{tmdb_id}/content_ratings")
-        if data:
-            for entry in data.get("results", []):
-                if entry.get("iso_3166_1") == "US":
-                    rating = (entry.get("rating") or "").strip()
-                    if rating:
-                        content_rating = rating
-                    break
-    return adult, certification, content_rating
 
 
 def main():
@@ -79,7 +50,7 @@ def main():
             if details is None:
                 log.warning("Skipping %s %s: no detail", r["media_type"], tid)
                 continue
-            adult, cert, cr = fetch_flags(r["media_type"], tid, details)
+            adult, cert, cr = fetch_content_flags(r["media_type"], tid, details)
             cur.execute(
                 """
                 UPDATE `titles`

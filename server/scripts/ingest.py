@@ -12,11 +12,9 @@ import os
 import sys
 import time
 import logging
-from pathlib import Path
 
 import requests
 import mysql.connector
-from mysql.connector import errorcode
 from dotenv import load_dotenv
 
 # ----------------------------------------------------------------------
@@ -34,6 +32,10 @@ API_KEY_PARAM = {"api_key": TMDB_API_KEY}
 
 SESSION = requests.Session()
 SESSION.headers.update(HEADERS)
+
+# Delay between titles (each title costs 4 API calls), to stay under TMDB's
+# rate limit. Override with INGEST_TITLE_SLEEP if needed.
+TITLE_SLEEP = float(os.getenv("INGEST_TITLE_SLEEP", "0.25"))
 
 MYSQL_CFG = {
     "host": os.getenv("MYSQL_HOST", "localhost"),
@@ -395,6 +397,8 @@ def ingest_titles(media_type, items, conn, cursor):
             log.error("Failed title %s %s: %s", media_type, tmdb_id, exc)
             conn.rollback()
             continue
+        finally:
+            time.sleep(TITLE_SLEEP)
 
 
 def main():

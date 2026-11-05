@@ -8,11 +8,15 @@
 
   function formatDate(iso) {
     if (!iso) return '—';
-    const d = new Date(iso);
+    // Parse date-only strings as local dates: `new Date('YYYY-MM-DD')` is UTC
+    // midnight and renders as the previous day in negative-offset timezones.
+    const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (!m) return iso;
+    const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
     return isNaN(d) ? iso : d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
   }
 
-  function posterCard(t, matchPct) {
+  function posterCard(t, matchPct, idx) {
     const year = t.release_date ? '<span><i class="bi bi-calendar3 me-1"></i>' + releaseYear(t.release_date) + '</span>' : '';
     const img = t.poster_path
       ? '<img src="' + tmdbImage(t.poster_path, 'w342') + '" alt="' + escapeHtml(t.title) + '" class="w-100" loading="lazy" style="aspect-ratio:2/3;object-fit:cover;">'
@@ -21,7 +25,7 @@
     const match = matchPct != null
       ? '<span class="type-badge" style="border-color:rgba(45,212,191,.55);color:#2dd4bf;">' + matchPct + '% Match</span>'
       : '';
-    return '<div class="col-6 col-sm-4 col-md-3 col-lg-2 reveal" style="transition-delay:calc(' + 0 + ' * 45ms);">' +
+    return '<div class="col-6 col-sm-4 col-md-3 col-lg-2 reveal" style="transition-delay:calc(' + (idx || 0) + ' * 45ms);">' +
       '<a href="detail.html?id=' + t.id + '" class="poster-card d-block text-decoration-none" aria-label="View ' + escapeHtml(t.title) + '">' +
         img + rating + match +
         '<span class="card-overlay">' +
@@ -69,14 +73,14 @@
       ['Language', t.original_language ? t.original_language.toUpperCase() : '—'],
     ];
     document.getElementById('infoGrid').innerHTML = info.map(([label, value]) =>
-      '<div class="col-6 col-md-4 col-lg-2"><div class="info-tile reveal"><small>' + label + '</small><div class="info-value">' + value + '</div></div></div>'
+      '<div class="col-6 col-md-4 col-lg-2"><div class="info-tile reveal"><small>' + escapeHtml(label) + '</small><div class="info-value">' + escapeHtml(value) + '</div></div></div>'
     ).join('');
 
     const similar = data.similar || [];
     if (similar.length) {
       document.getElementById('similarSection').style.display = '';
-      document.getElementById('similarGrid').innerHTML = similar.map(s =>
-        posterCard(s, Math.round((parseFloat(s.similarity_score) || 0) * 100))
+      document.getElementById('similarGrid').innerHTML = similar.map((s, i) =>
+        posterCard(s, Math.round((parseFloat(s.similarity_score) || 0) * 100), i)
       ).join('');
     }
 
@@ -84,18 +88,78 @@
     document.querySelectorAll('.reveal').forEach(el => el.classList.add('visible'));
   }
 
+  function showError() {
+    document.getElementById('detailError').style.display = '';
+    document.getElementById('detailTitle').textContent = 'Title not found';
+    document.getElementById('detailOverview').textContent = '';
+    document.getElementById('detailMeta').innerHTML = '';
+    document.title = 'Title not found – The Recommender';
+  }
+
   async function load() {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
     if (!id) {
-      document.getElementById('detailError').style.display = '';
+      showError();
       return;
     }
     try {
       const data = await apiFetch('/titles/' + encodeURIComponent(id));
       render(data);
     } catch (err) {
-      document.getElementById('detailError').style.display = '';
+      showError();
+    }
+  }
+
+  // Local watchlist/favorites (no accounts, so persistence lives in the browser).
+  const STORAGE_KEYS = {
+    watchlist: 'recommender.watchlist',
+    favorite: 'recommender.favorites',
+  };
+
+  function readList(key) {
+    try {
+      const raw = JSON.parse(localStorage.getItem(key) || '[]');
+      return Array.isArray(raw) ? raw.map(String) : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function writeList(key, list) {
+    try { localStorage.setItem(key, JSON.stringify(list)); } catch (e) { /* storage unavailable */ }
+  }
+
+  function isSaved(key, id) {
+    return id != null && readList(key).indexOf(String(id)) !== -1;
+  }
+
+  function toggleSaved(key, id) {
+    const list = readList(key);
+    const idx = list.indexOf(String(id));
+    if (idx === -1) list.push(String(id)); else list.splice(idx, 1);
+    writeList(key, list);
+    return idx === -1;
+  }
+
+  async function copyLink() {
+    const url = window.location.href;
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = url;
+        ta.style.position = 'fixed';
+        ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+      }
+      window.showToast('Link copied to clipboard', 'bi-link-45deg');
+    } catch (e) {
+      window.showToast('Could not copy the link', 'bi-exclamation-triangle');
     }
   }
 
@@ -108,14 +172,38 @@
       if (bg) bg.style.transform = 'translateY(' + (window.scrollY * 0.35) + 'px)';
     }, { passive: true });
 
-    // Action buttons with toast feedback
+    const titleId = new URLSearchParams(window.location.search).get('id');
+    const watchBtn = document.querySelector('[data-action="watchlist"]');
+    const favBtn = document.querySelector('[data-action="favorite"]');
+
+    function syncActions() {
+      if (!titleId) return;
+      if (watchBtn) watchBtn.classList.toggle('active', isSaved(STORAGE_KEYS.watchlist, titleId));
+      if (favBtn) favBtn.classList.toggle('active', isSaved(STORAGE_KEYS.favorite, titleId));
+    }
+    syncActions();
+
     document.querySelectorAll('.action-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const msg = btn.dataset.toast || 'Done';
-        const icon = btn.dataset.icon || 'bi-check2-circle';
+        const action = btn.dataset.action;
         btn.style.transform = 'scale(.95)';
-        window.showToast(msg, icon);
         setTimeout(() => { btn.style.transform = ''; }, 350);
+
+        if (action === 'share') {
+          copyLink();
+          return;
+        }
+        if (!titleId) return;
+
+        if (action === 'watchlist') {
+          const added = toggleSaved(STORAGE_KEYS.watchlist, titleId);
+          syncActions();
+          window.showToast(added ? 'Added to your Watchlist' : 'Removed from your Watchlist', 'bi-plus-circle');
+        } else if (action === 'favorite') {
+          const added = toggleSaved(STORAGE_KEYS.favorite, titleId);
+          syncActions();
+          window.showToast(added ? 'Saved to Favorites' : 'Removed from Favorites', 'bi-heart-fill');
+        }
       });
     });
   });

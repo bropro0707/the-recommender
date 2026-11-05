@@ -1,7 +1,8 @@
+import os
 from datetime import date, datetime
 from decimal import Decimal
 
-from flask import Blueprint, jsonify, request, abort
+from flask import Blueprint, jsonify, request, abort, current_app
 
 from .db import get_db
 from .search import search_titles
@@ -46,40 +47,45 @@ def config():
     })
 
 
+def _db_details():
+    return {
+        'host': os.getenv('MYSQL_HOST', 'localhost'),
+        'port': os.getenv('MYSQL_PORT', '3306'),
+        'database': os.getenv('MYSQL_DATABASE', 'movie_recommender'),
+        'user': os.getenv('MYSQL_USER', 'root'),
+        'ssl': os.getenv('MYSQL_SSL', 'false'),
+    }
+
+
 @api_bp.route('/health')
 def health():
-    """Diagnostic: report DB connectivity. Returns the raw error so it can be
-    seen in the response body (browser/curl) without digging through logs."""
-    import os
+    """Minimal DB connectivity check.
+
+    Infrastructure details and the raw exception are only included when
+    HEALTH_DETAILS=true, so the public endpoint cannot leak DB internals.
+    Full errors always go to the server log.
+    """
+    verbose = os.getenv('HEALTH_DETAILS', 'false').lower() == 'true'
     conn = None
     try:
         conn = get_db()
         cursor = conn.cursor()
-        cursor.execute("SELECT 1")
-        cursor.fetchone()
-        cursor.close()
-        return jsonify({
-            'status': 'ok',
-            'db': {
-                'host': os.getenv('MYSQL_HOST', 'localhost'),
-                'port': os.getenv('MYSQL_PORT', '3306'),
-                'database': os.getenv('MYSQL_DATABASE', 'movie_recommender'),
-                'user': os.getenv('MYSQL_USER', 'root'),
-                'ssl': os.getenv('MYSQL_SSL', 'false'),
-            },
-        })
+        try:
+            cursor.execute("SELECT 1")
+            cursor.fetchone()
+        finally:
+            cursor.close()
+        payload = {'status': 'ok'}
+        if verbose:
+            payload['db'] = _db_details()
+        return jsonify(payload)
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'db': {
-                'host': os.getenv('MYSQL_HOST', 'localhost'),
-                'port': os.getenv('MYSQL_PORT', '3306'),
-                'database': os.getenv('MYSQL_DATABASE', 'movie_recommender'),
-                'user': os.getenv('MYSQL_USER', 'root'),
-                'ssl': os.getenv('MYSQL_SSL', 'false'),
-                'error': '%s: %s' % (type(e).__name__, str(e)),
-            },
-        }), 500
+        current_app.logger.exception("Health check failed")
+        payload = {'status': 'error'}
+        if verbose:
+            payload['db'] = _db_details()
+            payload['error'] = '%s: %s' % (type(e).__name__, str(e))
+        return jsonify(payload), 500
     finally:
         if conn is not None:
             try:
@@ -95,11 +101,13 @@ def favorites():
     if limit < 1 or limit > 100:
         limit = 24
     conn = get_db()
+    cursor = None
     try:
         cursor = conn.cursor(dictionary=True)
         rows = _fetch_favorites(cursor, limit=limit)
     finally:
-        cursor.close()
+        if cursor is not None:
+            cursor.close()
         conn.close()
     return jsonify({'favorites': _serialize_list(rows)})
 
@@ -108,12 +116,14 @@ def favorites():
 def stats():
     """Count of movies and TV series in the database."""
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = None
     try:
+        cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT media_type, COUNT(*) AS cnt FROM titles GROUP BY media_type")
         rows = cursor.fetchall()
     finally:
-        cursor.close()
+        if cursor is not None:
+            cursor.close()
         conn.close()
     counts = {r['media_type']: r['cnt'] for r in rows}
     return jsonify({
@@ -137,6 +147,7 @@ def index():
     offset = (page - 1) * per_page
 
     conn = get_db()
+    cursor = None
     try:
         if query:
             total, titles = search_titles(conn, query, per_page, offset)
@@ -151,8 +162,9 @@ def index():
             titles = cursor.fetchall()
             cursor.execute("SELECT COUNT(*) as cnt FROM titles")
             total = cursor.fetchone()['cnt']
-            cursor.close()
     finally:
+        if cursor is not None:
+            cursor.close()
         conn.close()
 
     total_pages = (total + per_page - 1) // per_page
@@ -169,8 +181,9 @@ def index():
 @api_bp.route('/titles/<int:title_id>')
 def title_detail(title_id):
     conn = get_db()
-    cursor = conn.cursor(dictionary=True)
+    cursor = None
     try:
+        cursor = conn.cursor(dictionary=True)
         cursor.execute("""
             SELECT id, tmdb_id, media_type, title, overview, release_date,
                    poster_path, backdrop_path, vote_average, vote_count, popularity, original_language
@@ -190,7 +203,8 @@ def title_detail(title_id):
         """, (title_id,))
         similar = cursor.fetchall()
     finally:
-        cursor.close()
+        if cursor is not None:
+            cursor.close()
         conn.close()
 
     return jsonify({'title': _serialize(title), 'similar': _serialize_list(similar)})

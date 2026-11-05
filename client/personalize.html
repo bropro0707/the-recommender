@@ -34,16 +34,9 @@
         <i class="bi bi-list text-light fs-3"></i>
       </button>
       <div class="collapse navbar-collapse" id="navContent">
-        <a class="btn btn-ghost me-2 my-2 my-lg-0" href="personalize.html" style="padding:.45rem 1.2rem;font-size:.9rem;">
+        <a class="btn btn-personalize btn-personalize-sm ms-auto my-2 my-lg-0" href="personalize.html" aria-current="page">
           <i class="bi bi-sliders2-vertical me-1"></i>Personalize
         </a>
-        <form class="search-form ms-auto w-100 w-lg-auto my-3 my-lg-0" id="navbarSearch" action="index.html" method="GET" role="search">
-          <div class="input-group">
-            <input class="form-control" type="search" name="q" placeholder="Search movies & shows…"
-                   value="" aria-label="Search">
-            <button class="btn" type="submit"><i class="bi bi-search"></i></button>
-          </div>
-        </form>
       </div>
     </div>
   </nav>
@@ -58,7 +51,7 @@
             <h1 class="quiz-title">Want recommendation,<br>give answer of these questions <span class="grad">mate</span></h1>
             <p class="quiz-sub">
               Tell me your vibe, your recent favorites and your hard no’s — I’ll filter
-              everything down to what you actually want to bing.
+              everything down to what you actually want to binge.
             </p>
           </div>
           <div class="col-12 col-md-4 text-md-end">
@@ -130,10 +123,15 @@
                 <h3>Something you loved recently</h3>
                 <p class="qsub">Tap as many posters as you like — I’ll find their soulmates.</p>
                 <input type="hidden" name="favorite_id" id="favoriteIds" value="">
-                <div class="fav-input mb-3">
+                <div class="fav-input mb-2 position-relative">
                   <input type="text" class="form-control" name="favorite_text" id="favoriteText"
-                         placeholder="Or type any movie or series name…" autocomplete="off">
+                         placeholder="Or type any movie or series name…" autocomplete="off"
+                         role="combobox" aria-autocomplete="list" aria-controls="favoriteSuggestions"
+                         aria-expanded="false" aria-haspopup="listbox">
+                  <div class="fav-suggestions" id="favoriteSuggestions" role="listbox" hidden></div>
                 </div>
+                <div class="fav-selection mb-2" id="favoriteChips" aria-live="polite" hidden></div>
+                <p class="fav-error mb-2" id="favoriteError" role="alert" hidden></p>
                 <div class="row g-2 g-md-3" id="favoriteGrid">
                   <div class="col-12">
                     <div class="loading" style="padding:0;">
@@ -142,7 +140,7 @@
                   </div>
                 </div>
                 <div class="d-flex align-items-center gap-3 mt-3">
-                  <p class="fav-note mb-0"><i class="bi bi-info-circle me-1"></i><span id="favCount">Pick a few favorites</span> <span class="text-muted">— tap posters to toggle, or type a title.</span></p>
+                  <p class="fav-note mb-0"><i class="bi bi-info-circle me-1"></i><span id="favCount">Pick a few favorites</span> <span class="text-muted">— tap posters to toggle, or search and add titles.</span></p>
                   <button type="button" class="q-skip" data-skip="q3">Skip this question</button>
                 </div>
               </div>

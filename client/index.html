@@ -34,16 +34,9 @@
         <i class="bi bi-list text-light fs-3"></i>
       </button>
       <div class="collapse navbar-collapse" id="navContent">
-        <a class="btn btn-ghost me-2 my-2 my-lg-0" href="personalize.html" style="padding:.45rem 1.2rem;font-size:.9rem;">
+        <a class="btn btn-personalize btn-personalize-sm ms-auto my-2 my-lg-0" href="personalize.html">
           <i class="bi bi-sliders2-vertical me-1"></i>Personalize
         </a>
-        <form class="search-form ms-auto w-100 w-lg-auto my-3 my-lg-0" id="navbarSearch" action="index.html" method="GET" role="search">
-          <div class="input-group">
-            <input class="form-control" type="search" name="q" placeholder="Search movies & shows…"
-                   value="" aria-label="Search">
-            <button class="btn" type="submit"><i class="bi bi-search"></i></button>
-          </div>
-        </form>
       </div>
     </div>
   </nav>
@@ -52,22 +45,14 @@
   <section class="hero d-flex align-items-center" style="min-height:82vh;">
     <div class="container px-3 px-md-5 position-relative py-5 text-center">
       <span class="hero-pill fade-in-up"><i class="bi bi-stars"></i> Personalized picks, powered by your taste</span>
-      <h1 class="hero-title fade-in-up">Go, Find your <span class="grad">bing watch</span></h1>
+      <h1 class="hero-title fade-in-up">Go, find your next <span class="grad">binge watch</span></h1>
       <p class="hero-sub fade-in-up" style="animation-delay:.08s;">
-        Search thousands of movies and shows, explore hand-picked recommendations,
+        Explore thousands of movies and shows, get hand-picked recommendations,
         and never wonder what to watch again.
       </p>
 
-      <form class="hero-search fade-in-up" style="animation-delay:.16s;" action="index.html" method="GET" role="search">
-        <div class="input-group input-group-lg">
-          <input class="form-control" type="search" name="q" placeholder="Search movies, shows, actors…"
-                 value="" aria-label="Search">
-          <button class="btn" type="submit"><i class="bi bi-search me-1"></i><span>Search</span></button>
-        </div>
-      </form>
-
-      <div class="mt-4 fade-in-up" style="animation-delay:.26s;">
-        <a href="personalize.html" class="btn btn-ghost"><i class="bi bi-sliders2-vertical me-2"></i>Take the quiz for personalized picks</a>
+      <div class="mt-4 fade-in-up" style="animation-delay:.16s;">
+        <a href="personalize.html" class="btn btn-personalize btn-personalize-pulse"><i class="bi bi-sliders2-vertical me-2"></i>Take the quiz for personalized picks</a>
       </div>
 
       <a href="#explore" class="scroll-hint mt-5 d-inline-flex align-items-center gap-2 text-decoration-none">
@@ -114,10 +99,10 @@
       <div class="row g-4" id="posterGrid"></div>
 
       <div class="empty-state text-center" id="emptyState" style="display:none;">
-        <div class="empty-icon mx-auto mb-3"><i class="bi bi-search"></i></div>
-        <h3 class="fw-semibold mb-2">No results found</h3>
-        <p class="muted mb-4">We couldn't find anything. Try a different title or clear your search.</p>
-        <a href="index.html" class="btn btn-gradient"><i class="bi bi-arrow-counterclockwise me-2"></i>Clear search</a>
+        <div class="empty-icon mx-auto mb-3"><i class="bi bi-collection-play"></i></div>
+        <h3 class="fw-semibold mb-2">Nothing to show right now</h3>
+        <p class="muted mb-4">We couldn't load any titles. Please try again in a moment.</p>
+        <a href="index.html" class="btn btn-gradient"><i class="bi bi-arrow-clockwise me-2"></i>Refresh page</a>
       </div>
 
       <!-- Pagination -->
